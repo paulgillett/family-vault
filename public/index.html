@@ -3,126 +3,77 @@
 <head>
 	<meta name="generator" content="Hugo 0.124.1"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Family Vault & Trust Graph</title>
-  <style>
-    body { font-family: system-ui, sans-serif; background: #121212; color: #e0e0e0; padding: 2rem; max-width: 800px; margin: auto; }
-    h1, h2 { color: #4caf50; }
-    .card { background: #1e1e1e; border-radius: 8px; padding: 1.5rem; margin-top: 1rem; border: 1px solid #333; }
-    .btn { background: #4caf50; color: #121212; border: none; padding: 0.6rem 1.2rem; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 0.5rem; }
-    input, textarea { width: 100%; padding: 0.6rem; margin-top: 0.4rem; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: white; box-sizing: border-box; }
-    .toggle-container { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; cursor: pointer; }
-    .toggle-container input { width: auto; margin: 0; cursor: pointer; }
-    .stat-readout { background: #252525; padding: 1rem; border-radius: 6px; margin-top: 1rem; border: 1px solid #333; font-size: 0.9rem; color: #bbb; }
-    .stat-readout span { color: #4caf50; font-weight: bold; }
-  </style>
+  <title>Family Vault</title>
+  
   <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/age-wasm@latest/age.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #121212; color: #f0f0f0; }
+    .card { background: #1e1e1e; padding: 1.5rem; border-radius: 8px; max-width: 600px; margin: 0 auto; }
+    #status { margin-top: 1rem; color: #00ffcc; font-weight: bold; }
+    #preview { margin-top: 1rem; max-width: 100%; border-radius: 4px; }
+  </style>
 </head>
 <body>
-  <h1>Family Digital Vault</h1>
 
-  
-  <div class="card">
-    <h2>Node Profile & Bio</h2>
-    <label>Full Name or Alias:</label>
-    <input type="text" id="inputName" placeholder="e.g. Paul Gillette">
+<div class="card">
+  <h2>🔒 Family Vault Media Receiver</h2>
+  <div id="status">Waiting for link parameters...</div>
+  <div id="media-container"></div>
+</div>
 
-    <label style="display:block; margin-top: 1rem;">Personal Bio / Background:</label>
-    <textarea id="inputBio" rows="3" placeholder="Share a brief history, interests, or notes for the family archive..."></textarea>
+<script>
+  const client = new WebTorrent();
 
-    <button class="btn" onclick="saveProfileLocally()">Save Profile & Bio</button>
-  </div>
+  async function handleAutoDownload() {
+    
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const magnet = hashParams.get('magnet');
+    const secretKey = hashParams.get('key');
 
-  
-  <div class="card">
-    <h2>P2P Media Archive</h2>
-    <p>Enable this node to participate in decentralized media distribution for encrypted family videos and heirlooms.</p>
-
-    <label class="toggle-container">
-      <input type="checkbox" id="p2pToggle" onchange="toggleP2PNode()">
-      <span>Enable Local P2P Media Storage and Seeding</span>
-    </label>
-
-    <div class="stat-readout" id="p2pStats" style="display: none;">
-      <div>Status: <span id="nodeStatus">Initializing Client...</span></div>
-      <div style="margin-top: 0.4rem;">Encrypted Media Volume: <span>1.42 GB</span> available across trusted nodes.</div>
-      <div style="margin-top: 0.4rem;">Connected Peers: <span id="peerCount">0</span></div>
-      
-      <div style="margin-top: 1rem;">
-        <input type="text" id="magnetInput" placeholder="Paste encrypted media magnet link..." style="margin-bottom: 0.5rem;">
-        <button class="btn" onclick="startDownloadingMedia()">Stream / Seed Encrypted File</button>
-      </div>
-
-      <div id="videoContainer" style="margin-top: 1rem;"></div>
-    </div>
-  </div>
-
-  <script>
-    let client = null;
-
-    function saveProfileLocally() {
-      const name = document.getElementById("inputName").value;
-      const bio = document.getElementById("inputBio").value;
-      if(name) {
-        alert("Profile and bio data for " + name + " saved locally!");
-      } else {
-        alert("Please enter a name or alias first.");
-      }
+    if (!magnet) {
+      document.getElementById('status').innerText = "Ready to seed or receive files.";
+      return;
     }
 
-    function toggleP2PNode() {
-      const isEnabled = document.getElementById("p2pToggle").checked;
-      const statsDiv = document.getElementById("p2pStats");
-      statsDiv.style.display = isEnabled ? "block" : "none";
+    document.getElementById('status').innerText = "Connecting to P2P network & downloading file...";
 
-      if (isEnabled && !client) {
-        client = new WebTorrent();
-        document.getElementById("nodeStatus").innerText = "Active Peer Node";
-        
-        client.on("error", function (err) {
-          console.error("WebTorrent error: " + err.message);
-        });
-      } else if (!isEnabled && client) {
-        client.destroy();
-        client = null;
-        document.getElementById("nodeStatus").innerText = "Disabled";
-      }
-    }
+    
+    client.add(magnet, async (torrent) => {
+      document.getElementById('status').innerText = "Downloading encrypted payload...";
 
-    function startDownloadingMedia() {
-      if (!client) return;
-      const magnetUri = document.getElementById("magnetInput").value;
-      if (!magnetUri) {
-        alert("Please enter a valid WebTorrent magnet link.");
-        return;
-      }
+      const file = torrent.files[0];
+      const buffer = await file.arrayBuffer();
 
-      document.getElementById("nodeStatus").innerText = "Connecting to peers & downloading...";
+      if (secretKey) {
+        document.getElementById('status').innerText = "Decrypting payload in browser...";
+        try {
+          
+          const decryptedBytes = await age.decrypt(new Uint8Array(buffer), secretKey);
 
-      client.add(magnetUri, function (torrent) {
-        document.getElementById("peerCount").innerText = torrent.numPeers;
-        
-        torrent.on("wire", function (wire) {
-          document.getElementById("peerCount").innerText = torrent.numPeers;
-        });
+          
+          const blob = new Blob([decryptedBytes]);
+          const blobUrl = URL.createObjectURL(blob);
 
-        const file = torrent.files.find(function (file) {
-          return file.name.endsWith(".age") || file.name.endsWith(".mp4") || file.name.endsWith(".mkv");
-        });
+          document.getElementById('status').innerText = "Success! Displaying media:";
 
-        if (file) {
-          document.getElementById("nodeStatus").innerText = "Seeding & Ready";
-          file.getBlob(function (err, blob) {
-            if (err) throw err;
-            const url = URL.createObjectURL(blob);
-            const container = document.getElementById("videoContainer");
-            container.innerHTML = `<a href="${url}" download="${file.name}" class="btn" style="display:inline-block; text-decoration:none;">Download Encrypted File (${Math.round(file.length / 1024 / 1024)} MB)</a>`;
-          });
-        } else {
-          alert("No compatible media file found in torrent.");
+          
+          const img = document.createElement('img');
+          img.src = blobUrl;
+          img.id = 'preview';
+          document.getElementById('media-container').appendChild(img);
+
+        } catch (err) {
+          document.getElementById('status').innerText = "Decryption failed. Check key permission.";
         }
-      });
-    }
-  </script>
+      } else {
+        document.getElementById('status').innerText = "Download complete (Encrypted .age file).";
+      }
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', handleAutoDownload);
+</script>
+
 </body>
 </html>
