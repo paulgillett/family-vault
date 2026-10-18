@@ -14,6 +14,9 @@
     .toggle-container input { width: auto; margin: 0; cursor: pointer; }
     .stat-readout { background: #252525; padding: 1rem; border-radius: 6px; margin-top: 1rem; border: 1px solid #333; font-size: 0.9rem; color: #bbb; }
     .stat-readout span { color: #4caf50; font-weight: bold; }
+    .upload-zone { border: 2px dashed #4caf50; border-radius: 6px; padding: 1.5rem; text-align: center; margin-top: 1rem; background: #182218; cursor: pointer; }
+    .upload-zone:hover { background: #203020; }
+    .magnet-output { background: #111; word-break: break-all; padding: 0.75rem; border-radius: 4px; border: 1px solid #333; font-family: monospace; font-size: 0.85rem; color: #81c784; margin-top: 0.5rem; user-select: all; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
 </head>
@@ -32,10 +35,10 @@
     <button class="btn" onclick="saveProfileLocally()">Save Profile & Bio</button>
   </div>
 
-  <!-- P2P Media Storage & Sharing Card -->
+  <!-- P2P Media Storage & Magnet Link Generator Card -->
   <div class="card">
-    <h2>P2P Media Archive</h2>
-    <p>Enable this node to participate in decentralized media distribution for encrypted family videos and heirlooms.</p>
+    <h2>P2P Media Archive & Seeder</h2>
+    <p>Enable this node to stream, seed, and upload encrypted family media directly to peer nodes.</p>
 
     <label class="toggle-container">
       <input type="checkbox" id="p2pToggle" onchange="toggleP2PNode()">
@@ -44,11 +47,26 @@
 
     <div class="stat-readout" id="p2pStats" style="display: none;">
       <div>Status: <span id="nodeStatus">Initializing Client...</span></div>
-      <div style="margin-top: 0.4rem;">Encrypted Media Volume: <span>1.42 GB</span> available across trusted nodes.</div>
       <div style="margin-top: 0.4rem;">Connected Peers: <span id="peerCount">0</span></div>
-      
-      <div style="margin-top: 1rem;">
-        <input type="text" id="magnetInput" placeholder="Paste encrypted media magnet link..." style="margin-bottom: 0.5rem;">
+
+      <!-- File Upload & Seeding Section -->
+      <div class="upload-zone" onclick="document.getElementById(fileInput).click()">
+        <strong>Click to Select Encrypted File to Seed</strong>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: #aaa;">Select an encrypted .age file or family video to generate a magnet link</p>
+        <input type="file" id="fileInput" style="display: none;" onchange="seedSelectedFile(this.files)">
+      </div>
+
+      <div id="seedResult" style="display: none; margin-top: 1rem;">
+        <div><strong>Active Seed Magnet Link:</strong> (Copy and share with family nodes)</div>
+        <div class="magnet-output" id="generatedMagnet"></div>
+      </div>
+
+      <hr style="border-color: #333; margin: 1.5rem 0;">
+
+      <!-- Stream / Download Section -->
+      <div>
+        <label>Receive Media from Peer:</label>
+        <input type="text" id="magnetInput" placeholder="Paste media magnet link from another node..." style="margin-bottom: 0.5rem;">
         <button class="btn" onclick="startDownloadingMedia()">Stream / Seed Encrypted File</button>
       </div>
 
@@ -61,7 +79,6 @@
 
     function saveProfileLocally() {
       const name = document.getElementById("inputName").value;
-      const bio = document.getElementById("inputBio").value;
       if(name) {
         alert("Profile and bio data for " + name + " saved locally!");
       } else {
@@ -77,7 +94,7 @@
       if (isEnabled && !client) {
         client = new WebTorrent();
         document.getElementById("nodeStatus").innerText = "Active Peer Node";
-        
+
         client.on("error", function (err) {
           console.error("WebTorrent error: " + err.message);
         });
@@ -86,6 +103,24 @@
         client = null;
         document.getElementById("nodeStatus").innerText = "Disabled";
       }
+    }
+
+    function seedSelectedFile(files) {
+      if (!client || !files || files.length === 0) return;
+
+      const file = files[0];
+      document.getElementById("nodeStatus").innerText = "Creating Torrent & Seeding " + file.name + "...";
+
+      client.seed(file, function (torrent) {
+        document.getElementById("nodeStatus").innerText = "Seeding: " + torrent.name + " (" + Math.round(torrent.length / 1024 / 1024) + " MB)";
+        document.getElementById("seedResult").style.display = "block";
+        document.getElementById("generatedMagnet").innerText = torrent.magnetURI;
+        document.getElementById("peerCount").innerText = torrent.numPeers;
+
+        torrent.on("wire", function (wire) {
+          document.getElementById("peerCount").innerText = torrent.numPeers;
+        });
+      });
     }
 
     function startDownloadingMedia() {
@@ -100,25 +135,20 @@
 
       client.add(magnetUri, function (torrent) {
         document.getElementById("peerCount").innerText = torrent.numPeers;
-        
+
         torrent.on("wire", function (wire) {
           document.getElementById("peerCount").innerText = torrent.numPeers;
         });
 
-        const file = torrent.files.find(function (file) {
-          return file.name.endsWith(".age") || file.name.endsWith(".mp4") || file.name.endsWith(".mkv");
-        });
-
+        const file = torrent.files[0];
         if (file) {
           document.getElementById("nodeStatus").innerText = "Seeding & Ready";
           file.getBlob(function (err, blob) {
             if (err) throw err;
             const url = URL.createObjectURL(blob);
             const container = document.getElementById("videoContainer");
-            container.innerHTML = `<a href="${url}" download="${file.name}" class="btn" style="display:inline-block; text-decoration:none;">Download Encrypted File (${Math.round(file.length / 1024 / 1024)} MB)</a>`;
+            container.innerHTML = `<a href="${url}" download="${file.name}" class="btn" style="display:inline-block; text-decoration:none;">Download Received File (${Math.round(file.length / 1024 / 1024)} MB)</a>`;
           });
-        } else {
-          alert("No compatible media file found in torrent.");
         }
       });
     }
