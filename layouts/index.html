@@ -8,14 +8,13 @@
     body { font-family: system-ui, sans-serif; background: #121212; color: #e0e0e0; padding: 2rem; max-width: 800px; margin: auto; }
     h1, h2 { color: #4caf50; }
     .card { background: #1e1e1e; border-radius: 8px; padding: 1.5rem; margin-top: 1rem; border: 1px solid #333; }
-    .btn { background: #4caf50; color: #121212; border: none; padding: 0.6rem 1.2rem; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 0.5rem; }
+    .btn { background: #4caf50; color: #121212; border: none; padding: 0.6rem 1.2rem; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 0.5rem; display: inline-block; }
     input, textarea { width: 100%; padding: 0.6rem; margin-top: 0.4rem; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: white; box-sizing: border-box; }
     .toggle-container { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; cursor: pointer; }
     .toggle-container input { width: auto; margin: 0; cursor: pointer; }
     .stat-readout { background: #252525; padding: 1rem; border-radius: 6px; margin-top: 1rem; border: 1px solid #333; font-size: 0.9rem; color: #bbb; }
     .stat-readout span { color: #4caf50; font-weight: bold; }
-    .upload-zone { border: 2px dashed #4caf50; border-radius: 6px; padding: 1.5rem; text-align: center; margin-top: 1rem; background: #182218; cursor: pointer; }
-    .upload-zone:hover { background: #203020; }
+    .upload-section { background: #182218; border: 1px solid #335533; border-radius: 6px; padding: 1rem; margin-top: 1rem; }
     .magnet-output { background: #111; word-break: break-all; padding: 0.75rem; border-radius: 4px; border: 1px solid #333; font-family: monospace; font-size: 0.85rem; color: #81c784; margin-top: 0.5rem; user-select: all; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
@@ -49,11 +48,12 @@
       <div>Status: <span id="nodeStatus">Initializing Client...</span></div>
       <div style="margin-top: 0.4rem;">Connected Peers: <span id="peerCount">0</span></div>
 
-      <!-- File Upload & Seeding Section -->
-      <div class="upload-zone" onclick="document.getElementById(fileInput).click()">
-        <strong>Click to Select Encrypted File to Seed</strong>
-        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: #aaa;">Select an encrypted .age file or family video to generate a magnet link</p>
-        <input type="file" id="fileInput" style="display: none;" onchange="seedSelectedFile(this.files)">
+      <!-- Explicit File Upload Section -->
+      <div class="upload-section">
+        <label style="font-weight: bold; color: #81c784;">Select File to Seed (Encrypted .age or Video):</label>
+        <input type="file" id="fileInput" style="margin-top: 0.5rem; background: #121212; cursor: pointer;">
+        <br>
+        <button class="btn" onclick="seedSelectedFile()">Generate Magnet Link & Seed</button>
       </div>
 
       <div id="seedResult" style="display: none; margin-top: 1rem;">
@@ -67,7 +67,7 @@
       <div>
         <label>Receive Media from Peer:</label>
         <input type="text" id="magnetInput" placeholder="Paste media magnet link from another node..." style="margin-bottom: 0.5rem;">
-        <button class="btn" onclick="startDownloadingMedia()">Stream / Seed Encrypted File</button>
+        <button class="btn" onclick="startDownloadingMedia()">Stream / Download Encrypted File</button>
       </div>
 
       <div id="videoContainer" style="margin-top: 1rem;"></div>
@@ -105,10 +105,19 @@
       }
     }
 
-    function seedSelectedFile(files) {
-      if (!client || !files || files.length === 0) return;
+    function seedSelectedFile() {
+      if (!client) {
+        alert("Please enable the P2P node first.");
+        return;
+      }
 
-      const file = files[0];
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Please choose a file using the file picker first.");
+        return;
+      }
+
+      const file = fileInput.files[0];
       document.getElementById("nodeStatus").innerText = "Creating Torrent & Seeding " + file.name + "...";
 
       client.seed(file, function (torrent) {
@@ -147,7 +156,7 @@
             if (err) throw err;
             const url = URL.createObjectURL(blob);
             const container = document.getElementById("videoContainer");
-            container.innerHTML = `<a href="${url}" download="${file.name}" class="btn" style="display:inline-block; text-decoration:none;">Download Received File (${Math.round(file.length / 1024 / 1024)} MB)</a>`;
+            container.innerHTML = `<a href="${url}" download="${file.name}" class="btn" style="text-decoration:none;">Download Received File (${Math.round(file.length / 1024 / 1024)} MB)</a>`;
           });
         }
       });
