@@ -1,0 +1,20 @@
+{
+  "pending_approvals": [
+    {
+      "id": "req-8821",
+      "name": "Alex Smith",
+      "relationship": "Cousin",
+      "public_key_hash": "age1q8372...a99x",
+      "requested_date": "2026-10-18",
+      "status": "pending_approval"
+    }
+  ],
+  "active_members": [
+    {
+      "id": "node-alpha-01",
+      "name": "Vault Guardian",
+      "role": "Admin",
+      "status": "verified"
+    }
+  ]
+}
